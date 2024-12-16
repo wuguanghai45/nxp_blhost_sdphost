@@ -22,6 +22,7 @@
 ********************************************************/
 
 /* C */
+#include <dirent.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -41,6 +42,12 @@
 #include <linux/hidraw.h>
 #include <linux/version.h>
 #include <linux/input.h>
+
+#include <limits.h> // 确保包含这个头文件
+
+#ifndef PATH_MAX
+#define PATH_MAX 4096
+#endif
 
 #include "hidapi.h"
 
@@ -299,6 +306,54 @@ int HID_API_EXPORT hid_exit(void)
     return 0;
 }
 
+char *get_path_by_vendor_id_and_product_id(unsigned short vendor_id, unsigned short product_id)
+{
+    DIR *dir;
+    struct dirent *entry;
+    char *path_to_open = NULL;
+
+    dir = opendir("/sys/class/hidraw");
+    if (!dir) {
+        perror("opendir");
+        return NULL;
+    }
+
+    while ((entry = readdir(dir)) != NULL) {
+        if (entry->d_type == DT_LNK) {
+            char path[PATH_MAX];
+            char modalias[256];
+            FILE *file;
+            unsigned int dev_vendor_id, dev_product_id;
+            unsigned int b, g;
+
+            snprintf(path, sizeof(path), "/sys/class/hidraw/%s/device/modalias", entry->d_name);
+            file = fopen(path, "r");
+            if (!file) {
+                fprintf(stderr, "Failed to open modalias file: %s\n", path);
+                continue;
+            }
+
+            if (fgets(modalias, sizeof(modalias), file) != NULL) {
+                if (sscanf(modalias, "hid:b%04Xg%04Xv%08Xp%08X", &b, &g, &dev_vendor_id, &dev_product_id) == 4) {
+                    if ((vendor_id == 0x0 || vendor_id == dev_vendor_id) &&
+                        (product_id == 0x0 || product_id == dev_product_id)) {
+
+                        char full_path[PATH_MAX];
+                        snprintf(full_path, sizeof(full_path), "/dev/%s", entry->d_name);
+                        path_to_open = strdup(full_path);
+                        fclose(file);
+                        break; // 找到匹配的设备后立即退出循环
+                    }
+                }
+            }
+            fclose(file);
+        }
+    }
+
+    closedir(dir);
+    return path_to_open;
+}
+
 struct hid_device_info HID_API_EXPORT *hid_enumerate(unsigned short vendor_id, unsigned short product_id)
 {
     return NULL;
@@ -325,36 +380,16 @@ hid_device *hid_open(unsigned short vendor_id, unsigned short product_id, const 
     const char *path_to_open = NULL;
     hid_device *handle = NULL;
 
-    devs = hid_enumerate(vendor_id, product_id);
-    cur_dev = devs;
-    while (cur_dev)
-    {
-        if (cur_dev->vendor_id == vendor_id && cur_dev->product_id == product_id)
-        {
-            if (serial_number && (wcslen(serial_number) > 0))
-            {
-                if (wcscmp(serial_number, cur_dev->serial_number) == 0)
-                {
-                    path_to_open = cur_dev->path;
-                    break;
-                }
-            }
-            else
-            {
-                path_to_open = cur_dev->path;
-                break;
-            }
-        }
-        cur_dev = cur_dev->next;
-    }
+    path_to_open = get_path_by_vendor_id_and_product_id(vendor_id, product_id);
 
-    if (path_to_open)
-    {
-        /* Open the device */
+    // 枚举设备
+    if (path_to_open) {
+        /* 打开设备 */
         handle = hid_open_path(path_to_open);
     }
 
-    hid_free_enumeration(devs);
+    // 释放设备列表
+    // hid_free_enumeration(devs);
 
     return handle;
 }

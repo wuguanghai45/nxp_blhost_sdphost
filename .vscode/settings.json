@@ -6,6 +6,7 @@
         "typeinfo": "cpp",
         "chrono": "cpp",
         "text_encoding": "cpp",
-        "stdexcept": "cpp"
+        "stdexcept": "cpp",
+        "format": "c"
     }
 }
