@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "hidapi.h": "c",
+        "libusb.h": "c",
+        "string.h": "c",
+        "typeinfo": "cpp",
+        "chrono": "cpp",
+        "text_encoding": "cpp",
+        "stdexcept": "cpp"
+    }
+}

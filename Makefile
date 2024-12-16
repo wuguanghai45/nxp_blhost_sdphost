@@ -2,7 +2,6 @@ all: blhost sdphost
 
 CXXFLAGS := -Os -flto -fuse-linker-plugin -DLINUX -DBOOTLOADER_HOST -Isrc -Isrc/include
 CFLAGS := -Os -flto -fuse-linker-plugin -DLINUX -DBOOTLOADER_HOST -Isrc -Isrc/blfwk
-LDLIBS := -ludev
 
 BLFWK := $(addprefix src/blfwk/src/, Bootloader.o BusPal.o BusPalPeripheral.o \
 		Command.o DataSource.o DataTarget.o ELFSourceFile.o \
